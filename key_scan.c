@@ -35,7 +35,7 @@ void key_scan() {
 
     P1 = P1 | 0xC3;
     P54 = 1;
-    P3 = P3 & (~0xCC);
+    P3 = P3 & (~0xCC);//
 
     Delay10000us();
 
