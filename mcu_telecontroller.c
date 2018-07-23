@@ -119,6 +119,12 @@ void into_sleep() {
     _nop_();
 }
 
+void uart_send_key() {
+    UartSend(0x55);
+    UartSend(0xAA);
+    UartSend(key_send_num);
+}
+
 void uart_run() {
     // send key num
     if(key_send_num != 0) {
@@ -128,12 +134,8 @@ void uart_run() {
             key_send_num = key_send_num | 0xC0;
 
         if(key_type != KEY_PRESS_LONG || (key_type == KEY_PRESS_LONG && long_send_flg == 1)) {
-//            if(mesh_state == IN_MESH) {
-                UartSend(0x55);
-                UartSend(0xAA);
-                UartSend(key_send_num);
+                uart_send_key();
                 long_send_flg = 0;
-//            }
         }
         key_send_num = 0;
         if(key_type != KEY_PRESS_LONG)
