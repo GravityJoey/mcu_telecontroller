@@ -8,6 +8,8 @@
 #define OUT_OF_MESH    0
 #define IN_MESH        1
 
+#define ALL_KEY_CHECK_MASK    0x3FFFF
+
 unsigned int time = 0;
 unsigned int led_blink_time = 0;
 bit busy = 0;
@@ -15,8 +17,14 @@ bit long_send_flg = 0;
 bit int_flg = 0;
 bit cmd_rece_flg = 0;
 bit mesh_state = IN_MESH;
+
+char factory_test_flg = 0;
+char fc_test_success = 0;
+unsigned long fc_test_bit = 0;
+
 char led_blink_flg = 0;
 char key_row = 0;
+char key_column = 0;
 char key_press = 0;
 char key_send_num = 0;
 char key_type = 0;
@@ -126,7 +134,7 @@ void uart_send_key() {
 }
 
 void uart_run() {
-    // send key num
+    //*********************// send key num
     if(key_send_num != 0) {
         if(key_type == KEY_PRESS_LONG)
             key_send_num = key_send_num | 0x80;
@@ -142,7 +150,7 @@ void uart_run() {
             key_type = KEY_PRESS;
     }
 
-    // receieve the data
+    //*******************// receieve the data
     if(cmd_rece_flg) {
         cmd_rece_flg = 0;
         
@@ -171,13 +179,37 @@ void uart_run() {
             case 0x03:
                 mesh_state = IN_MESH;
                 led_blink_flg = 0;
-                led_blink_time = 0;
                 set_led_state(LED_OFF);
+            break;
+            case 0x04:
+                factory_test_flg = 1;
+                fc_test_success = 0;
+                fc_test_bit = 0;
+                key_row = 0;
+                key_column = 0;
+                UartSend(0x66);
             break;
 
             default:
             break;
         }
+    }
+}
+
+void factory_logic_test() {
+//    static char key_send_num_pre = 0;
+    if(!fc_test_success) {
+        key_scan_logic_test();
+//        if(key_send_num_pre != key_send_num) {
+//            key_send_num_pre = key_send_num;
+        fc_test_bit = fc_test_bit | (1 << (key_send_num - 1));
+        fc_test_bit = fc_test_bit & ALL_KEY_CHECK_MASK;
+
+        if(fc_test_bit == ALL_KEY_CHECK_MASK) {
+            fc_test_success = 1;
+            set_led_state(LED_ON);
+        }
+//        }
     }
 }
 
@@ -190,31 +222,27 @@ void main() {
     while(1) {
         INT_disable();            //唤醒后 关闭外部中断
 
-/*        if(mesh_state == OUT_OF_MESH) {
-            led_blink_flg = 1;
-            led_blink_time = time * 10;
-            set_led_state(LED_BLINK);
+        if(factory_test_flg) {
+            factory_logic_test();
+            led_run();
         }
         else {
-            led_blink_flg = 1;
-            led_blink_time = 0;
-            set_led_state(LED_OFF);
-        }*/
+            if(!led_blink_flg)
+                key_scan();
+            else {
+                if(time_exceed(led_blink_time, 60000)) {
+                    led_blink_flg = 0;
+                    led_blink_time = 0;
+                    set_led_state(LED_OFF);
+                }
+            }
+            uart_run();
+            led_run();
 
-        if(!led_blink_flg)
-            key_scan();
-        else {
-            if(time_exceed(led_blink_time, 60000)) {
-                led_blink_flg = 0;
-                led_blink_time = 0;
-                set_led_state(LED_OFF);
+            if(!busy && !key_press && !led_blink_flg) {
+                into_sleep();
             }
         }
-        uart_run();
-        led_run();
-
-        if(!busy && !key_press &&!led_blink_flg)
-            into_sleep();
     }
 }
 

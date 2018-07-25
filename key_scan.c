@@ -6,6 +6,7 @@
 
 
 extern char key_row;
+extern char key_column;
 extern char key_press;
 extern char key_type;
 extern char key_send_num;
@@ -31,7 +32,6 @@ void Delay10000us() {		//@11.0592MHz
 
 void key_scan() {
     char key_value = 0;
-    static char key_column = 0;
 
     P1 = P1 | 0xC3;
     P54 = 1;
@@ -107,6 +107,78 @@ void key_scan() {
                 key_row = 0;
                 key_column = 0;
             }
+        }
+    }
+}
+
+void key_scan_logic_test() {
+    char key_value = 0;
+    if(key_press == 0) {
+        if(key_row == 0) {
+            P1 = P1 & (~0xC3);
+            P54 = 0;
+            P3 = P3 | 0xCC;
+            Delay10000us();
+            if(P32 == 0) key_row = 1;
+            else if(P33 == 0) key_row = 2;
+            else if(P36 == 0) key_row = 3;
+            else if(P37 == 0) key_row = 4;
+        }
+
+        if(key_row != 0) {
+            P1 = P1 | 0xC3;
+            P54 = 1;
+            P3 = P3 & (~0xCC);
+            Delay10000us();
+            if(P10 == 0) key_column = 1;
+            else if(P11 == 0) key_column = 2;
+            else if(P16 == 0) key_column = 3;
+            else if(P17 == 0) key_column = 4;
+            else if(P54 == 0) key_column = 5;
+        }
+
+        if(key_column != 0) {
+            key_press = (key_row - 1) * 5 + key_column;
+            
+            set_led_state(LED_ON);
+        }
+    }
+
+    if(key_press!= 0) {
+        switch(key_column) {
+            case 1:
+                key_value = P10;
+            break;
+            
+            case 2:
+                key_value = P11;
+            break;
+            
+            case 3:
+                key_value = P16;
+            break;
+            
+            case 4:
+                key_value = P17;
+            break;
+            
+            case 5:
+                key_value = P54;
+            break;
+            
+            default:
+            break;
+        }
+
+        if(key_value == 0) {
+
+        }
+        else {
+            set_led_state(LED_OFF);
+            key_send_num = key_press;
+            key_row = 0;
+            key_column = 0;
+            key_press = 0;
         }
     }
 }

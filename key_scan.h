@@ -11,6 +11,9 @@ void Delay10000us();
 
 void key_scan();
 
+void key_scan_logic_test();
+
+
 
 
 
