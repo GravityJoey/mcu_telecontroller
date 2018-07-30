@@ -28,7 +28,7 @@ char key_column = 0;
 char key_press = 0;
 char key_send_num = 0;
 char key_type = 0;
-char buffer[3];
+unsigned char buffer[3];
 char wptr = 0;
 char mesh_cmd = 0;
 
@@ -93,17 +93,44 @@ void INT_enable() {
     }
 }
 
-void wakeup_8266() {
-    P35 = 1;                                //唤醒8266
+void wait_400ms() {
+    unsigned char i, j, k;
+
+    i = 23;
+    j = 113;
+    k = 248;
+    do {
+        do {
+            while (--k);
+        } while (--j);
+    } while (--i);
 }
 
+void Delay10ms()		//@11.0592MHz
+{
+	unsigned char i, j;
+
+	_nop_();
+	_nop_();
+	i = 144;
+	j = 157;
+	do
+	{
+		while (--j);
+	} while (--i);
+}
+
+void wakeup_8266() {
+    P35 = 1;                   //唤醒8266
+    Delay10ms();
+}
 
 void INT_disable() {
     if(int_flg) {
         wakeup_8266();
-        EX0 = 0;                                //关闭INT0中断
-        EX1 = 0;                                //关闭INT1中断
-        INTCLKO = 0x00;                         //关闭INT2/INT3中断 下降沿
+        EX0 = 0;                  //关闭INT0中断
+        EX1 = 0;                  //关闭INT1中断
+        INTCLKO = 0x00;           //关闭INT2/INT3中断 下降沿
         int_flg = 0;
     }
 }
@@ -113,23 +140,23 @@ void into_sleep() {
     P54 = 0;
     P3 = P3 | 0xCC;
 
-    P35 = 0;                                    //唤醒8266
+    P35 = 0;                     //唤醒8266
 
     INT_enable();
 
-    VOCTRL = 0x00;                              //掉电模式时使用内部SCC模块,功耗约1.5uA
-//    VOCTRL = 0x80;                              //掉电模式时使用外部SCC模块,功耗约0.15uA
+    VOCTRL = 0x00;               //掉电模式时使用内部SCC模块,功耗约1.5uA
+//    VOCTRL = 0x80;             //掉电模式时使用外部SCC模块,功耗约0.15uA
     _nop_();
     _nop_();
-//    PCON = IDL;                                 //MCU进入IDLE模式
-    PCON = PD;                                  //MCU进入掉电模式
+//    PCON = IDL;                //MCU进入IDLE模式
+    PCON = PD;                   //MCU进入掉电模式
     _nop_();
     _nop_();
 }
 
 void uart_send_key() {
-    UartSend(0x55);
-    UartSend(0xAA);
+    UartSend(0x5A);
+    UartSend(0xA5);
     UartSend(key_send_num);
 }
 
@@ -154,8 +181,8 @@ void uart_run() {
     if(cmd_rece_flg) {
         cmd_rece_flg = 0;
         
-        if(buffer[0] != 0x55) return;
-        if(buffer[1] != 0x66) return;
+        if(buffer[0] != 0x5A) return;
+        if(buffer[1] != 0xA5) return;
 
 //        UartSend(buffer[0]);
 //        UartSend(buffer[1]);
@@ -164,22 +191,23 @@ void uart_run() {
         mesh_cmd = buffer[2];
 
         switch(mesh_cmd) {
-            case 0x00:
-                mesh_state = OUT_OF_MESH;
-            break;
-            case 0x01:
-                mesh_state = IN_MESH;
-            break;
-            case 0x02:
+//            case 0x00:
+//                mesh_state = OUT_OF_MESH;
+//            break;
+//            case 0x01:
+//                mesh_state = IN_MESH;
+//            break;
+            case 0x21:
                 mesh_state = OUT_OF_MESH;
                 led_blink_flg = 1;
                 led_blink_time = time;
                 set_led_state(LED_BLINK);
             break;
-            case 0x03:
+            case 0x22:
+                if(mesh_state == OUT_OF_MESH)
+                    set_led_state(LED_OFF);
                 mesh_state = IN_MESH;
                 led_blink_flg = 0;
-                set_led_state(LED_OFF);
             break;
             case 0x04:
                 factory_test_flg = 1;
@@ -187,7 +215,8 @@ void uart_run() {
                 fc_test_bit = 0;
                 key_row = 0;
                 key_column = 0;
-                UartSend(0x66);
+                set_led_state(LED_BLINK_SLOWLY);
+//                UartSend(0x66);
             break;
 
             default:
@@ -240,6 +269,7 @@ void main() {
             led_run();
 
             if(!busy && !key_press && !led_blink_flg) {
+                wait_400ms();
                 into_sleep();
             }
         }

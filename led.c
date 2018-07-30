@@ -15,11 +15,10 @@ void set_led_state(char state) {
 }
 
 void led_run() {
-    static int blink_time = 0;
+    static int interval_time = 0;
 
     if(led_state.state != led_state.pre_state) {
         led_state.pre_state = led_state.state;
-        
         switch(led_state.state) {
             case LED_ON:
                 P55 = 0;
@@ -30,7 +29,8 @@ void led_run() {
             break;
 
             case LED_BLINK:
-                blink_time = time;
+            case LED_BLINK_SLOWLY:
+                interval_time = time;
             break;
 
             default:
@@ -39,9 +39,15 @@ void led_run() {
     }
 
     if(led_state.state == LED_BLINK) {
-        if(time_exceed(blink_time, 300)) {
+        if(time_exceed(interval_time, 300)) {
             P55 = ~P55;
-            blink_time = time;
+            interval_time = time;
+        }
+    }
+    if(led_state.state == LED_BLINK_SLOWLY) {
+        if(time_exceed(interval_time, 600)) {
+            P55 = ~P55;
+            interval_time = time;
         }
     }
 

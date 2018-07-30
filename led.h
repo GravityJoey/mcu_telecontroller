@@ -4,6 +4,7 @@
 #define LED_OFF                0
 #define LED_ON                 1
 #define LED_BLINK              2
+#define LED_BLINK_SLOWLY       3
 
 struct led_state_t {
     char state;
