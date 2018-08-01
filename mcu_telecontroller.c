@@ -31,39 +31,18 @@ char key_type = 0;
 unsigned char buffer[3];
 char wptr = 0;
 char mesh_cmd = 0;
-char real_row_flg = 0;
-
 
 struct led_state_t led_state;
 
-
-
 void INT0_Isr() interrupt 0 using 0 {
-    if(real_row_flg) {
-        real_row_flg = 0;
-        key_row = 1;
-    }
 }
 void INT1_Isr() interrupt 2 using 0 {
-    if(real_row_flg) {
-        real_row_flg = 0;
-        key_row = 2;
-    }
 }
 void INT2_Isr() interrupt 10 using 0 {
     AUXINTIF = AUXINTIF & (~INT2IF);
-    if(real_row_flg) {
-        real_row_flg = 0;
-        key_row = 3;
-    }
 }
 void INT3_Isr() interrupt 11 using 0 {
     AUXINTIF = AUXINTIF & (~INT3IF);
-    if(real_row_flg) {
-        real_row_flg = 0;
-        key_row = 4;
-    }
-    real_row_flg = 1;
 }
 
 void TM0_Isr() interrupt 1 using 1 {
