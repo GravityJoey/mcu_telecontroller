@@ -86,9 +86,17 @@ void key_scan() {
         }
 
         if(key_value == 0) {
-            if(time_exceed(press_time, 2000)) {
-                key_type = KEY_PRESS_LONG;
-                set_led_state(LED_BLINK);
+            if(key_press >= 12 && key_press <= 15) {
+                if(time_exceed(press_time, 15000)) {
+                    key_type = KEY_PRESS_LONG;
+                    set_led_state(LED_BLINK);
+                }
+            }
+            else {
+                if(time_exceed(press_time, 2000)) {
+                    key_type = KEY_PRESS_LONG;
+                    set_led_state(LED_BLINK);
+                }
             }
         }
         else {

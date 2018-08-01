@@ -31,32 +31,46 @@ char key_type = 0;
 unsigned char buffer[3];
 char wptr = 0;
 char mesh_cmd = 0;
+char real_row_flg = 0;
 
 
 struct led_state_t led_state;
 
 
 
-void INT0_Isr() interrupt 0 using 1 {
-    key_row = 1;
+void INT0_Isr() interrupt 0 using 0 {
+    if(real_row_flg) {
+        real_row_flg = 0;
+        key_row = 1;
+    }
 }
-void INT1_Isr() interrupt 2 using 1 {
-    key_row = 2;
+void INT1_Isr() interrupt 2 using 0 {
+    if(real_row_flg) {
+        real_row_flg = 0;
+        key_row = 2;
+    }
 }
-void INT2_Isr() interrupt 10 using 1 {
+void INT2_Isr() interrupt 10 using 0 {
     AUXINTIF = AUXINTIF & (~INT2IF);
-    key_row = 3;
+    if(real_row_flg) {
+        real_row_flg = 0;
+        key_row = 3;
+    }
 }
-void INT3_Isr() interrupt 11 using 1 {
+void INT3_Isr() interrupt 11 using 0 {
     AUXINTIF = AUXINTIF & (~INT3IF);
-    key_row = 4;
+    if(real_row_flg) {
+        real_row_flg = 0;
+        key_row = 4;
+    }
+    real_row_flg = 1;
 }
 
 void TM0_Isr() interrupt 1 using 1 {
     time++;                                //10ms
 }
 
-void UartIsr() interrupt 4 using 1 {
+void UartIsr() interrupt 4 using 2 {
     if (TI) {
         TI = 0;
         busy = 0;
@@ -70,6 +84,42 @@ void UartIsr() interrupt 4 using 1 {
             cmd_rece_flg = 1;
         }
     }
+}
+
+void Delay10ms()		//@11.0592MHz
+{
+	unsigned char i, j;
+
+	_nop_();
+	_nop_();
+	i = 144;
+	j = 157;
+	do
+	{
+		while (--j);
+	} while (--i);
+}
+
+void Delay1000ms()		//@11.0592MHz
+{
+	unsigned char i, j, k;
+
+	i = 57;
+	j = 27;
+	k = 112;
+	do
+	{
+		do
+		{
+			while (--k);
+		} while (--j);
+	} while (--i);
+}
+
+
+void wakeup_8266() {
+    P35 = 1;                   //»½ÐÑ8266
+    Delay10ms();
 }
 
 void Timer0_init() {
@@ -93,38 +143,6 @@ void INT_enable() {
     }
 }
 
-void wait_400ms() {
-    unsigned char i, j, k;
-
-    i = 23;
-    j = 113;
-    k = 248;
-    do {
-        do {
-            while (--k);
-        } while (--j);
-    } while (--i);
-}
-
-void Delay10ms()		//@11.0592MHz
-{
-	unsigned char i, j;
-
-	_nop_();
-	_nop_();
-	i = 144;
-	j = 157;
-	do
-	{
-		while (--j);
-	} while (--i);
-}
-
-void wakeup_8266() {
-    P35 = 1;                   //»½ÐÑ8266
-    Delay10ms();
-}
-
 void INT_disable() {
     if(int_flg) {
         wakeup_8266();
@@ -136,9 +154,9 @@ void INT_disable() {
 }
 
 void into_sleep() {
-    P1 = P1 & (~0xC3);
+    P1 &= (~0xC3);
     P54 = 0;
-    P3 = P3 | 0xCC;
+    P3 |= 0xCC;
 
     P35 = 0;                     //»½ÐÑ8266
 
@@ -191,12 +209,6 @@ void uart_run() {
         mesh_cmd = buffer[2];
 
         switch(mesh_cmd) {
-//            case 0x00:
-//                mesh_state = OUT_OF_MESH;
-//            break;
-//            case 0x01:
-//                mesh_state = IN_MESH;
-//            break;
             case 0x21:
                 mesh_state = OUT_OF_MESH;
                 led_blink_flg = 1;
@@ -204,19 +216,23 @@ void uart_run() {
                 set_led_state(LED_BLINK);
             break;
             case 0x22:
-                if(mesh_state == OUT_OF_MESH)
+                if(mesh_state == OUT_OF_MESH) {
                     set_led_state(LED_OFF);
+                    Delay1000ms();
+                }
                 mesh_state = IN_MESH;
                 led_blink_flg = 0;
             break;
-            case 0x04:
+            case 0x23:
                 factory_test_flg = 1;
+                led_blink_flg = 0;
                 fc_test_success = 0;
                 fc_test_bit = 0;
                 key_row = 0;
                 key_column = 0;
+                key_press = 0;
                 set_led_state(LED_BLINK_SLOWLY);
-//                UartSend(0x66);
+                Delay1000ms();
             break;
 
             default:
@@ -226,11 +242,8 @@ void uart_run() {
 }
 
 void factory_logic_test() {
-//    static char key_send_num_pre = 0;
     if(!fc_test_success) {
         key_scan_logic_test();
-//        if(key_send_num_pre != key_send_num) {
-//            key_send_num_pre = key_send_num;
         fc_test_bit = fc_test_bit | (1 << (key_send_num - 1));
         fc_test_bit = fc_test_bit & ALL_KEY_CHECK_MASK;
 
@@ -238,7 +251,6 @@ void factory_logic_test() {
             fc_test_success = 1;
             set_led_state(LED_ON);
         }
-//        }
     }
 }
 
@@ -268,8 +280,7 @@ void main() {
             uart_run();
             led_run();
 
-            if(!busy && !key_press && !led_blink_flg) {
-                wait_400ms();
+            if(!busy && !key_press && !led_blink_flg &&!factory_test_flg) {
                 into_sleep();
             }
         }
