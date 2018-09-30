@@ -213,6 +213,11 @@ void uart_run() {
                 set_led_state(LED_BLINK_SLOWLY);
                 Delay1000ms();
             break;
+            case 0x25:
+                led_blink_flg = 1;
+                led_blink_time = time;
+                set_led_state(LED_BLINK);
+            break;
 
             default:
             break;
