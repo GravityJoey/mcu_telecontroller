@@ -15,7 +15,7 @@ struct led_state_t {
 
 void led_run();
 
-char time_exceed(unsigned int time_pre, unsigned int cycle_ms);
+char time_exceed(unsigned long time_pre, unsigned long cycle_ms);
 
 void set_led_state(char state);
 

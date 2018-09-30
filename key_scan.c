@@ -12,8 +12,8 @@ extern char key_type;
 extern char key_send_num;
 extern bit mesh_state;
 extern bit long_send_flg;
-extern int time;
-unsigned int press_time = 0;
+extern unsigned long time;
+unsigned long press_time = 0;
 
 
 void Delay10000us() {		//@11.0592MHz

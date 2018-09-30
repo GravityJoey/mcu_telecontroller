@@ -10,8 +10,9 @@
 
 #define ALL_KEY_CHECK_MASK    0x3FFFF
 
-unsigned int time = 0;
-unsigned int led_blink_time = 0;
+unsigned long time = 0;
+unsigned long led_blink_time = 0;
+unsigned long led_blink_max_time = 0;
 bit busy = 0;
 bit long_send_flg = 0;
 bit int_flg = 0;
@@ -192,6 +193,7 @@ void uart_run() {
                 mesh_state = OUT_OF_MESH;
                 led_blink_flg = 1;
                 led_blink_time = time;
+                led_blink_max_time = 60000;
                 set_led_state(LED_BLINK);
             break;
             case 0x22:
@@ -216,6 +218,7 @@ void uart_run() {
             case 0x25:
                 led_blink_flg = 1;
                 led_blink_time = time;
+                led_blink_max_time = 120000;
                 set_led_state(LED_BLINK);
             break;
 
@@ -255,7 +258,7 @@ void main() {
             if(!led_blink_flg)
                 key_scan();
             else {
-                if(time_exceed(led_blink_time, 60000)) {
+                if(time_exceed(led_blink_time, led_blink_max_time)) {
                     led_blink_flg = 0;
                     led_blink_time = 0;
                     set_led_state(LED_OFF);
