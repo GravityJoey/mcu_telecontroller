@@ -8,6 +8,11 @@
 #define OUT_OF_MESH    0
 #define IN_MESH        1
 
+#define STATE_OUT_MESH  0x21
+#define STATE_IN_MESH   0x22
+#define FACTORY_TEST    0x23
+#define STATE_NO_SLEEP  0x25
+
 #define ALL_KEY_CHECK_MASK    0x3FFFF
 
 unsigned long time = 0;
@@ -23,6 +28,7 @@ char factory_test_flg = 0;
 char fc_test_success = 0;
 unsigned long fc_test_bit = 0;
 
+char ota_flg = 0;
 char led_blink_flg = 0;
 char key_row = 0;
 char key_column = 0;
@@ -31,7 +37,6 @@ char key_send_num = 0;
 char key_type = 0;
 unsigned char buffer[3];
 char wptr = 0;
-char mesh_cmd = 0;
 
 struct led_state_t led_state;
 
@@ -152,30 +157,15 @@ void into_sleep() {
     _nop_();
 }
 
-void uart_send_key() {
+void uart_send_key(char data_t){
     UartSend(0x5A);
     UartSend(0xA5);
-    UartSend(key_send_num);
+    UartSend(data_t);
+
 }
 
-void uart_run() {
-    //*********************// send key num
-    if(key_send_num != 0) {
-        if(key_type == KEY_PRESS_LONG)
-            key_send_num = key_send_num | 0x80;
-        if(key_type == KEY_PRESS_LONG_END)
-            key_send_num = key_send_num | 0xC0;
-
-        if(key_type != KEY_PRESS_LONG || (key_type == KEY_PRESS_LONG && long_send_flg == 1)) {
-                uart_send_key();
-                long_send_flg = 0;
-        }
-        key_send_num = 0;
-        if(key_type != KEY_PRESS_LONG)
-            key_type = KEY_PRESS;
-    }
-
-    //*******************// receieve the data
+void uart_recieve_cmd(){
+    char mesh_cmd = 0;
     if(cmd_rece_flg) {
         cmd_rece_flg = 0;
         
@@ -189,22 +179,29 @@ void uart_run() {
         mesh_cmd = buffer[2];
 
         switch(mesh_cmd) {
-            case 0x21:
+            case STATE_OUT_MESH:
                 mesh_state = OUT_OF_MESH;
                 led_blink_flg = 1;
                 led_blink_time = time;
                 led_blink_max_time = 60000;
                 set_led_state(LED_BLINK);
             break;
-            case 0x22:
+            case STATE_IN_MESH:
                 if(mesh_state == OUT_OF_MESH) {
                     set_led_state(LED_OFF);
                     Delay1000ms();
                 }
                 mesh_state = IN_MESH;
-                led_blink_flg = 0;
+                if(ota_flg){
+                    ota_flg = 0;
+                    led_blink_time = time;
+                    led_blink_max_time = 10000;
+                }
+                else{
+                    led_blink_flg = 0;
+                }
             break;
-            case 0x23:
+            case FACTORY_TEST:
                 factory_test_flg = 1;
                 led_blink_flg = 0;
                 fc_test_success = 0;
@@ -215,7 +212,8 @@ void uart_run() {
                 set_led_state(LED_BLINK_SLOWLY);
                 Delay1000ms();
             break;
-            case 0x25:
+            case STATE_NO_SLEEP:
+                ota_flg = 1;
                 led_blink_flg = 1;
                 led_blink_time = time;
                 led_blink_max_time = 120000;
@@ -226,6 +224,27 @@ void uart_run() {
             break;
         }
     }
+}
+
+void uart_run() {
+    //*********************// send key num
+    if(key_send_num != 0) {
+        if(key_type == KEY_PRESS_LONG)
+            key_send_num = key_send_num | 0x80;
+        if(key_type == KEY_PRESS_LONG_END)
+            key_send_num = key_send_num | 0xC0;
+
+        if(key_type != KEY_PRESS_LONG || (key_type == KEY_PRESS_LONG && long_send_flg == 1)) {
+            uart_send_key(key_send_num);
+            long_send_flg = 0;
+        }
+        key_send_num = 0;
+        if(key_type != KEY_PRESS_LONG)
+            key_type = KEY_PRESS;
+    }
+
+    //*******************// receieve the data
+    uart_recieve_cmd();
 }
 
 void factory_logic_test() {
